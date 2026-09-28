@@ -68,6 +68,12 @@ def curve(df: pd.DataFrame, grid: np.ndarray, profit_col: str) -> pd.DataFrame:
             "profit": float(df.loc[ok, profit_col].sum()),
             "profit_vs_approve_all": float(df.loc[ok, profit_col].sum() / total - 1) if total else np.nan,
             "approved_upb": float(df.loc[ok, "orig_upb"].sum()),
+            # realised profit = margin x horizon x performing_upb - default_loss, so the dashboard's
+            # policy simulator can recompute it for any margin or severity assumption
+            "approved_defaults": int(df.loc[ok, "default_in_window"].sum()),
+            "performing_upb": float(df.loc[ok & ~df["default_in_window"].astype(bool), "orig_upb"].sum()),
+            "default_loss": float((df.loc[ok, "default_in_window"].astype(float) * df.loc[ok, "lgd"]
+                                   * df.loc[ok, "orig_upb"]).sum()),
         })
     return pd.DataFrame(rows)
 

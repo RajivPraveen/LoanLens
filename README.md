@@ -16,72 +16,110 @@
 </p>
 
 <p align="center">
-  <a href="#what-loanlens-does"><b>What it does</b></a> ·
-  <a href="#headline-results"><b>Results</b></a> ·
+  <a href="#loanlens-in-one-minute"><b>In one minute</b></a> ·
+  <a href="#the-four-questions-it-answers"><b>The four questions</b></a> ·
+  <a href="#try-it-yourself"><b>Try it</b></a> ·
   <a href="#what-the-data-revealed"><b>Findings</b></a> ·
   <a href="#how-it-works"><b>How it works</b></a> ·
-  <a href="https://rajivpraveen.github.io/LoanLens/reports/dashboard.html"><b>Live dashboard</b></a> ·
-  <a href="#run-it"><b>Run it</b></a> ·
-  <a href="#deep-dives"><b>Deep dives</b></a>
+  <a href="#results-in-detail"><b>Results</b></a> ·
+  <a href="#run-it"><b>Run it</b></a>
 </p>
 
 ---
 
-## What LoanLens does
+## LoanLens in one minute
 
-A bank or investor that holds thousands of home loans has to answer the same questions every month:
-**which borrowers will stop paying, how much money would be lost if the economy turned, and which new
-applications are worth approving.** Get them wrong and you get 2008.
+When a bank lends someone money for a home, it is making a **30-year bet that the loan will be paid back**.
+A bank or mortgage investor holds hundreds of thousands of these bets at once, and every month its
+risk team has to decide how worried to be and what to do about it.
 
-LoanLens answers those questions end to end, from raw files to a decision memo. It is built on
-**real data**: 1.36 million mortgages that Freddie Mac bought between 1999 and 2026, each tracked month by
-month (75 million records) through the housing crisis, the COVID-19 pandemic and the 2022 rate shock,
-combined with 105 economic series from the Federal Reserve (FRED).
+**LoanLens is the system that does that job, end to end.** It takes raw loan records and economic data,
+checks and organises them, predicts which loans are likely to go bad, simulates what a recession would
+cost, and turns all of it into a clear recommendation: which new loans to approve.
 
-| The question a credit-risk team asks | How LoanLens answers it | Answer on the real data |
-|---|---|---|
-| **Who is likely to default?** | A probability-of-default (PD) model: logistic regression vs XGBoost, validated on later years it never saw, explained with SHAP | Ranks risk with **AUC 0.783**; the riskiest 10% of loans hold **39%** of all defaults |
-| **When will loans default or pay off?** | Survival analysis with competing risks (Kaplan-Meier, Aalen-Johansen, Cox) | Concordance **0.83**; pre-crisis loans defaulted about **6x** as often as post-2009 loans |
-| **What happens in a recession?** | Monte Carlo stress test: 5,000 simulated economies, plus a replay of 2008 | **0.64%** loss in a 1-in-100 scenario ($524M on an $82B book) |
-| **Which applications should we approve?** | Profit-based approval cutoff, chosen on one period and tested on a later one | Decline if PD > **4.6%**: approve 99.4%, **+0.19%** profit |
-| **Is the policy fair?** | Fair-lending review: approval rates and calibration by region, borrower type and loan size | Adverse impact ratio **≥ 0.99** everywhere; 1 group flagged |
+It runs on **real data**: 1.36 million mortgages that Freddie Mac bought between 1999 and 2026, each followed
+month by month (75 million monthly records) through the 2008 housing crisis, COVID-19 and the 2022 rate shock.
 
-### What it is trying to accomplish
+```mermaid
+flowchart LR
+  A["Raw loan records<br/>+ economic data"] --> B["Checked<br/>and organised"]
+  B --> C["Risk of each loan<br/>predicted"]
+  C --> D["Recessions<br/>simulated"]
+  D --> E["Approval policy<br/>recommended"]
+```
 
-The goal is to show the **whole chain a real credit-risk team runs**, built with production discipline
-rather than as a notebook:
+## The four questions it answers
 
-1. **Trustworthy data first.** Every file passes data-quality gates before it touches the warehouse, loads
-   are incremental and safe to rerun, and every model is tested (79 dbt tests).
-2. **Honest validation.** Models are judged on *later* years than they were trained on, the stress model is
-   backtested against the real 2008-2010 crisis, and the reports say plainly where the models fall short.
-3. **Decisions, not just scores.** The output is a recommended approval policy with its profit, its
-   trade-offs and its fairness impact, written up as a one-page memo for decision makers.
+| # | The question a risk team asks | What LoanLens found, in plain words |
+|:-:|---|---|
+| 1 | **How are our loans doing?** | **0.63%** of borrowers are seriously behind (90+ days late) today. At the worst of the 2008 crisis it was **3.5%**. |
+| 2 | **Which loans go bad, and why?** | Loans made in **2007 were 4x as likely to default** as loans made in 2003, though the borrowers had similar credit scores: house prices fell right after they bought. A low credit score is the strongest single warning sign. |
+| 3 | **What if a recession hits?** | Across 5,000 simulated economies, the worst 1 in 100 costs **0.64% of the book ($524M of $82B)**. Replayed through the real 2008-2010 crisis, the model's default forecast landed **within 1%** of what actually happened. |
+| 4 | **Which new loans should we approve?** | Turn away applicants whose predicted risk of default is **above 4.6%**, about 1 in 180. That avoids 4% of defaults and **adds $2.0M of profit**. Turning away many more would *lose* money, because good borrowers get declined along with the bad. |
+| + | **Is the policy fair?** | Approval rates stay **within 1%** across regions, states, first-time buyers, single vs joint borrowers and loan sizes. |
 
----
+<details>
+<summary><b>New to credit risk? Key terms in plain English</b></summary>
 
-## Headline results
+<br>
 
-<table>
-<tr>
-<td align="center" width="25%"><h2>1.36M</h2>real loans · 75M loan-months<br><sub>28 files, 1999-2026, 100% of loaded data passed 1,776 quality checks</sub></td>
-<td align="center" width="25%"><h2>0.783</h2>out-of-time AUC (XGBoost)<br><sub>vs 0.737 logistic regression; 95% CI 0.777-0.790</sub></td>
-<td align="center" width="25%"><h2>0.64%</h2>99th-percentile stress loss<br><sub>$524M over 36 months; expected loss 0.17%</sub></td>
-<td align="center" width="25%"><h2>+1%</h2>2008-2010 backtest error<br><sub>projected 6.57% defaults vs 6.53% actual</sub></td>
-</tr>
-</table>
-
-| Area | Result (Freddie Mac Sample, performance through March 2026) |
+| Term | Meaning |
 |---|---|
-| Data engineering | 1,362,500 loans and 74,937,616 monthly records ingested incrementally; the quality gates **stopped one real batch** (a 36-month loan term in 1999) before it could load; 78 of 79 dbt tests pass, with 1 deliberate warning for outlier loss severities |
-| Default model (tested on 2014-2023 vintages) | **XGBoost AUC 0.783** vs **logistic regression 0.737** (+0.046); top decile captures 39.4% of defaults (lift 3.9x) |
-| Survival | Cox concordance 0.828 for default; a time-varying Cox model shows how unemployment, negative equity and the refinance incentive move default and prepayment risk month by month |
-| Stress test (performing book as of 2026-03: 343,920 loans, $82.3B) | Expected loss **0.17%**, 99th percentile **0.64%**, expected shortfall **0.86%**; CCAR-style severely adverse scenario (unemployment 10%, house prices -25%) **1.12%** |
-| Backtest (December 2007 book through the real 2008-2010 economy) | Production model: defaults **+1%**, losses -7% vs actual. With the crisis removed from fitting: **+48%** (overshoots). Naive through-the-cycle benchmark: **-69%** |
-| Approval policy | Decline PD > 4.60%: approves 99.4%, avoids 4.1% of defaults, **+0.19% profit ($2.0M)** on later vintages; larger gains if margins are thinner (+4.5% at a 0.25% margin) |
-| Fair lending | Minimum adverse impact ratio **0.992** (four-fifths rule: 0.80). One flag: the PD under-states Florida's risk relative to other states |
+| Delinquent | Behind on payments: 30, 60 or 90+ days late. 90+ days is *serious* delinquency. |
+| Default | A loan that is 90+ days late, in foreclosure, or sold at a loss. |
+| Vintage | The year a loan was made. Loans from the same year live through the same economy. |
+| LTV (loan-to-value) | The loan as a share of the home's value. Above 100%, the borrower owes more than the home is worth. |
+| PD (probability of default) | The model's estimate that a loan will default within 24 months. |
+| LGD (loss given default) | The share of the balance lost when a loan defaults, after the home is sold. |
+| Expected loss | PD x LGD x balance: what a loan is expected to cost on average. |
+| Stress test | Projecting losses through simulated bad economies. |
+| 99th-percentile loss | The loss exceeded in only 1 of 100 simulated economies. |
+| AUC | How well a model ranks risk: 0.5 is a coin flip, 1.0 is perfect. LoanLens scores 0.78. |
+</details>
 
-Every number above is regenerated by `loanlens report` in [reports/results_summary.md](reports/results_summary.md).
+## What the project is trying to accomplish
+
+**The goal is to show, on real data, the whole chain a lender's credit-risk team runs, from raw files to a
+decision a committee could adopt, and to build it the way it would be built for production.**
+
+1. **Turn data into decisions.** Scores and charts are not the end product. The output is a concrete approval
+   policy with its profit, its trade-offs and its fairness impact, written up as a
+   [one-page memo](reports/lending_memo.md).
+2. **Be trustworthy.** Every file is checked before it is stored, a bad delivery can never half-load, and
+   every model sits on one tested definition of "default" (79 automated data tests).
+3. **Be honest about uncertainty.** Models are judged on years they never saw, the stress test is replayed
+   through the real 2008 crisis, and the reports say plainly where the models fall short.
+
+**Why it matters.** Going into 2008, many risk models had only ever seen rising house prices, so they badly
+underestimated what a crash would do. LoanLens is built around that lesson: it conditions on the economy
+*after* a loan is made, it is tested against the crisis itself, and it measures how wrong it could be.
+
+## Try it yourself
+
+**[Open the live dashboard](https://rajivpraveen.github.io/LoanLens/reports/dashboard.html)**, no install
+needed. It starts with a plain-English guide, and every chart has a *"What this shows and why it matters"*
+note, a table view and hover tooltips. Three things to try:
+
+| Try this | What you will see |
+|---|---|
+| **[Move the approval slider](https://rajivpraveen.github.io/LoanLens/reports/dashboard.html#policy)** and change the margin or loss assumptions | Approval rate, defaults avoided and profit update live, on 500,000 real loans the model never trained on |
+| **[Filter the stress scenarios](https://rajivpraveen.github.io/LoanLens/reports/dashboard.html#stress)**, e.g. unemployment +4 points and house prices -20% | How many of the 5,000 simulated economies are that bad, and what the book would lose in them |
+| **[Pick vintages to compare](https://rajivpraveen.github.io/LoanLens/reports/dashboard.html#vintages)**, e.g. 2007 against 2022 | How each year's loans defaulted and lost money as they aged |
+
+<p align="center"><img src="docs/assets/dashboard_start.png" alt="Dashboard start page: what the dashboard is, the four questions with their answers, how it works, how to use it, and key terms" width="100%"></p>
+
+<details>
+<summary><b>More of the dashboard</b>: approval simulator, stress-scenario explorer, portfolio overview</summary>
+
+<br>
+<p align="center"><img src="docs/assets/dashboard_policy.png" alt="Approval policy simulator: cutoff slider, margin and severity selectors, live tiles, profit curve and gains chart" width="100%"></p>
+<p align="center"><img src="docs/assets/dashboard_stress.png" alt="Stress-test tab: loss distribution, scenario paths and the scenario explorer filtered to unemployment +4 points and house prices -20%" width="100%"></p>
+<p align="center"><img src="docs/assets/dashboard_overview.png" alt="Portfolio overview: KPIs, delinquency rates with recession shading, outstanding balance and prepayment speed" width="100%"></p>
+</details>
+
+The dashboard is a single self-contained file, [`reports/dashboard.html`](reports/dashboard.html), so it
+also works offline. The portfolio, vintage, roll-rate, segment, stress and data-quality pages also ship as a
+**Power BI kit** in [`powerbi/`](powerbi/).
 
 ---
 
@@ -214,35 +252,28 @@ failure alerts) and is also available as a `loanlens` command-line tool.
 
 ---
 
-## See it
+## Results in detail
 
-**[Open the live dashboard](https://rajivpraveen.github.io/LoanLens/reports/dashboard.html)**: six tabs
-(portfolio, vintages, roll rates, risk segments, stress test, data quality), time-range filters, hover
-tooltips, a table view for every chart, and light and dark themes. It is a single self-contained file,
-[`reports/dashboard.html`](reports/dashboard.html), so it also works offline. The same pages and measures
-ship as a **Power BI kit** in [`powerbi/`](powerbi/).
+<table>
+<tr>
+<td align="center" width="25%"><h2>1.36M</h2>real loans · 75M loan-months<br><sub>28 files, 1999-2026, 100% of loaded data passed 1,776 quality checks</sub></td>
+<td align="center" width="25%"><h2>0.783</h2>out-of-time AUC (XGBoost)<br><sub>vs 0.737 logistic regression; 95% CI 0.777-0.790</sub></td>
+<td align="center" width="25%"><h2>0.64%</h2>99th-percentile stress loss<br><sub>$524M over 36 months; expected loss 0.17%</sub></td>
+<td align="center" width="25%"><h2>+1%</h2>2008-2010 backtest error<br><sub>projected 6.57% defaults vs 6.53% actual</sub></td>
+</tr>
+</table>
 
-<p align="center"><img src="docs/assets/dashboard_overview.png" alt="Dashboard overview: KPIs, delinquency rates with recession shading, outstanding balance and prepayment speed" width="100%"></p>
+| Area | Result (Freddie Mac Sample, performance through March 2026) |
+|---|---|
+| Data engineering | 1,362,500 loans and 74,937,616 monthly records ingested incrementally; the quality gates **stopped one real batch** (a 36-month loan term in 1999) before it could load; 78 of 79 dbt tests pass, with 1 deliberate warning for outlier loss severities |
+| Default model (tested on 2014-2023 vintages) | **XGBoost AUC 0.783** vs **logistic regression 0.737** (+0.046); top decile captures 39.4% of defaults (lift 3.9x) |
+| Survival | Cox concordance 0.828 for default; a time-varying Cox model shows how unemployment, negative equity and the refinance incentive move default and prepayment risk month by month |
+| Stress test (performing book as of 2026-03: 343,920 loans, $82.3B) | Expected loss **0.17%**, 99th percentile **0.64%**, expected shortfall **0.86%**; CCAR-style severely adverse scenario (unemployment 10%, house prices -25%) **1.12%** |
+| Backtest (December 2007 book through the real 2008-2010 economy) | Production model: defaults **+1%**, losses -7% vs actual. With the crisis removed from fitting: **+48%** (overshoots). Naive through-the-cycle benchmark: **-69%** |
+| Approval policy | Decline PD > 4.60%: approves 99.4%, avoids 4.1% of defaults, **+0.19% profit ($2.0M)** on later vintages; larger gains if margins are thinner (+4.5% at a 0.25% margin) |
+| Fair lending | Minimum adverse impact ratio **0.992** (four-fifths rule: 0.80). One flag: the PD under-states Florida's risk relative to other states |
 
-<details>
-<summary><b>Stress-test tab</b>: loss distribution, scenario paths, loss drivers, backtest</summary>
-
-<br>
-<p align="center"><img src="docs/assets/dashboard_stress.png" alt="Stress-test tab: loss distribution, unemployment and house-price scenario paths, drivers scatter and 2008-2010 backtest" width="100%"></p>
-</details>
-
-<details>
-<summary><b>More figures</b>: calibration, survival curves, profit trade-off, fairness</summary>
-
-<br>
-
-| | |
-|:---:|:---:|
-| <img src="reports/figures/pd_calibration.png" alt="PD calibration curve" width="100%"> | <img src="reports/figures/survival_km_fico.png" alt="Kaplan-Meier survival by credit-score band" width="100%"> |
-| Calibration on the test vintages | Share of loans not yet defaulted, by credit score |
-| <img src="reports/figures/memo_tradeoff.png" alt="Profit vs approval rate trade-off" width="100%"> | <img src="reports/figures/fairness_groups.png" alt="Approval and calibration by group" width="100%"> |
-| Profit vs approval rate: the recommended cutoff | Fair-lending review by group |
-</details>
+Every number above is regenerated by `loanlens report` in [reports/results_summary.md](reports/results_summary.md).
 
 ### Reports
 
