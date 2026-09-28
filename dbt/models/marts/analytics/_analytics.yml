@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: mart_portfolio_monthly
+    description: Portfolio KPIs by month - balances, delinquency rates, CPR/CDR, losses.
+    columns:
+      - name: period_month
+        tests: [not_null, unique]
+      - name: serious_dq_rate
+        tests:
+          - value_between:
+              arguments: {min_value: 0, max_value: 1}
+      - name: cpr
+        tests:
+          - value_between:
+              arguments: {min_value: 0, max_value: 1}
+
+  - name: mart_vintage_curves
+    description: Cumulative default / loss / prepayment curves by vintage year and loan age.
+    tests:
+      - dbt_utils_unique_combination:
+          arguments:
+            columns: [vintage_year, months_since_first_payment]
+    columns:
+      - name: cum_default_rate
+        tests:
+          - value_between:
+              arguments: {min_value: 0, max_value: 1}
+
+  - name: mart_roll_rates
+    description: Monthly transition counts and rates between delinquency states.
+    columns:
+      - name: roll_rate
+        tests:
+          - value_between:
+              arguments: {min_value: 0, max_value: 1}
+
+  - name: mart_roll_rate_summary
+    columns:
+      - name: period_month
+        tests: [unique]
+
+  - name: mart_risk_segments
+    description: Latest-month snapshot of active loans by FICO band x LTV band x state.
+
+  - name: mart_loss_by_vintage
+    columns:
+      - name: vintage_year
+        tests: [not_null, unique]
+
+  - name: mart_data_quality
+    description: Validation pass rates per run and suite.
+    columns:
+      - name: pass_rate
+        tests:
+          - value_between:
+              arguments: {min_value: 0, max_value: 1}
+
+  - name: mart_ingest_history
+    description: Load history of every source period.

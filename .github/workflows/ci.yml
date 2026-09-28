@@ -1,0 +1,25 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Install
+        run: |
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv -e ".[dev,orchestration,postgres]"
+      - name: Lint
+        run: .venv/bin/ruff check src tests
+      - name: dbt parse
+        run: .venv/bin/dbt parse --project-dir dbt --profiles-dir dbt
+        env: {LOANLENS_WAREHOUSE: /tmp/ci.duckdb}
+      - name: Tests (unit, data-quality gates, end-to-end pipeline on the tiny profile)
+        run: .venv/bin/python -m pytest -q
+      - name: Dagster definitions load
+        run: .venv/bin/dagster definitions validate -m loanlens.orchestration.definitions
+        env: {LOANLENS_PROFILE: tiny, LOANLENS_WORKSPACE: /tmp/ll_ws}

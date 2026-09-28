@@ -1,0 +1,49 @@
+# docker compose up postgres            # serving database for Power BI (localhost:$LOANLENS_PG_PORT, default 5432)
+# docker compose run --rm pipeline      # full pipeline -> ./data ./artifacts ./reports ./powerbi/data
+# docker compose run --rm publish       # copy star schema + marts into Postgres
+# docker compose up dagster             # orchestration UI on http://localhost:3000
+x-loanlens: &loanlens
+  build: .
+  image: loanlens:latest
+  environment:
+    LOANLENS_PROFILE: ${LOANLENS_PROFILE:-freddie}
+    LOANLENS_POSTGRES_DSN: postgresql://loanlens:loanlens@postgres:5432/loanlens
+    FRED_API_KEY: ${FRED_API_KEY:-}
+    LOANLENS_ALERT_WEBHOOK: ${LOANLENS_ALERT_WEBHOOK:-}
+  volumes:
+    - ./data:/workspace/data
+    - ./artifacts:/workspace/artifacts
+    - ./reports:/workspace/reports
+    - ./powerbi/data:/workspace/powerbi/data
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: loanlens
+      POSTGRES_PASSWORD: loanlens
+      POSTGRES_DB: loanlens
+    ports: ["${LOANLENS_PG_PORT:-5432}:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loanlens"]
+      interval: 5s
+      retries: 20
+
+  pipeline:
+    <<: *loanlens
+    command: ["all"]
+
+  publish:
+    <<: *loanlens
+    command: ["publish-postgres"]
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  dagster:
+    <<: *loanlens
+    entrypoint: ["dagster", "dev", "-m", "loanlens.orchestration.definitions", "-h", "0.0.0.0", "-p", "3000"]
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:

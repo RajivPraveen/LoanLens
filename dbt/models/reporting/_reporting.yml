@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: rpt_active_portfolio_risk
+    description: Current book with model PD (12m), LGD, EAD and expected loss per loan.
+    columns:
+      - name: loan_id
+        tests: [not_null, unique]
+      - name: pd_12m
+        tests:
+          - value_between:
+              arguments: {min_value: 0, max_value: 1}
+  - name: rpt_risk_segments_el
+    description: Expected loss by FICO band x LTV band x state.
+  - name: rpt_stress_loss_distribution
+    description: Stress-test scenario results ranked by loss.

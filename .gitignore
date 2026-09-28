@@ -1,0 +1,23 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+
+# generated
+# data/ also holds the licensed Freddie Mac files - never commit them
+data/
+artifacts/
+powerbi/data/
+dbt/target/
+dbt/logs/
+logs/
+*.duckdb
+*.duckdb.wal
+.dagster/
+_archive_synthetic_demo/
+
+# Freddie Mac's Release 47 example files (downloaded from freddiemac.com): used by one local
+# test that skips itself when they are absent; not redistributed
+tests/fixtures/freddie_r47_example/

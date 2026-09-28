@@ -1,0 +1,60 @@
+{
+  "profile": "freddie",
+  "data": "Freddie Mac loan-level",
+  "loans": 1362500,
+  "monthly_records": 74937616,
+  "source_periods": 28,
+  "dq_checks": 1776,
+  "dq_pass_rate": 1.0,
+  "dq_batches_blocked": 1,
+  "auc_xgboost": 0.7827082401229442,
+  "auc_logistic": 0.7368700957156288,
+  "auc_ci_xgboost": [
+    0.7769229415810502,
+    0.7897352998680996
+  ],
+  "auc_ci_logistic": [
+    0.7305570349241636,
+    0.7446477190613893
+  ],
+  "test_default_rate": 0.008677870330167255,
+  "test_mean_pd": 0.004760337993502617,
+  "cox_concordance_default": 0.8278819035579713,
+  "n_scenarios": 5000,
+  "horizon_months": 36,
+  "expected_loss_rate": 0.0016541652168057099,
+  "var99_loss_rate": 0.006372112527450546,
+  "es99_loss_rate": 0.00857833385797751,
+  "severely_adverse_loss_rate": 0.011230808018699993,
+  "backtest": {
+    "as_of": "2007-12",
+    "horizon_months": 36,
+    "window_excluded": [
+      "2007-01",
+      "2010-12"
+    ],
+    "loans": 217884,
+    "upb": 32083884470.03,
+    "actual_default_rate": 0.06525949587854088,
+    "projected_default_rate": 0.09660345910357516,
+    "naive_default_rate": 0.020435143910087925,
+    "actual_default_rate_upb": 0.07802480228129495,
+    "projected_default_rate_upb": 0.11166074713613088,
+    "actual_loss_rate": 0.020755992477845292,
+    "projected_loss_rate": 0.029626789949211408,
+    "in_sample_default_rate": 0.06569707450919168,
+    "in_sample_loss_rate": 0.019239684522433912,
+    "hazard_auc_in_sample": 0.8369933778022203,
+    "default_rate_error": 0.48029735447804844,
+    "loss_rate_error": 0.42738488563409827,
+    "naive_error": -0.6868632888595825,
+    "in_sample_default_error": 0.00670521009640046,
+    "in_sample_loss_error": -0.07305398462780666
+  },
+  "cutoff_pd": 0.0460096148494631,
+  "profit_uplift": 0.0019094644144694861,
+  "approval_rate": 0.9944895423358818,
+  "defaults_avoided_share": 0.040811620936131,
+  "fairness_min_air": 0.9920010433542947,
+  "fairness_flags": 1
+}

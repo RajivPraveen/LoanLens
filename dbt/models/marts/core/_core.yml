@@ -1,0 +1,83 @@
+version: 2
+
+models:
+  - name: dim_loan
+    description: Loan dimension - origination attributes, macro at origination, observed outcome.
+    columns:
+      - name: loan_id
+        tests: [not_null, unique]
+      - name: vintage_year
+        tests: [not_null]
+      - name: state_code
+        tests:
+          - relationships:
+              arguments: {to: ref('dim_geography'), field: state_code}
+      - name: termination_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Active', 'Matured', 'Voluntary payoff', 'Third-party sale', 'Short sale',
+                         'REO disposition', 'Note sale', 'Reperforming loan sale', 'Repurchase', 'Other']
+      - name: loss_severity
+        tests:
+          # Real liquidations include small gains (recoveries above balance) and losses above
+          # 100% (expenses and interest on small balances). Outliers are reported, not blocked.
+          - value_between:
+              arguments: {min_value: -0.5, max_value: 2.0}
+              config: {severity: warn}
+      - name: months_to_default
+        tests:
+          # 0 = already in default in the first reported month (loan age 0)
+          - value_between:
+              arguments: {min_value: 0}
+
+  - name: fct_loan_monthly
+    description: Monthly loan performance fact (incremental by source period).
+    tests:
+      - dbt_utils_unique_combination:
+          arguments:
+            columns: [loan_id, period_month]
+    columns:
+      - name: loan_id
+        tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_loan'), field: loan_id}
+      - name: macro_key
+        tests:
+          - relationships:
+              arguments: {to: ref('dim_macro'), field: macro_key}
+      - name: month_key
+        tests:
+          - relationships:
+              arguments: {to: ref('dim_date'), field: month_key}
+      - name: current_upb
+        tests: [not_negative]
+      - name: dq_state
+        tests: [not_null]
+      - name: is_default_event
+        tests: [not_null]
+      - name: is_prepaid
+        tests: [not_null]
+      - name: is_liquidated
+        tests: [not_null]
+
+  - name: dim_macro
+    description: State x month economic conditions (FRED).
+    columns:
+      - name: macro_key
+        tests: [not_null, unique]
+      - name: state_unemployment_rate
+        tests:
+          - value_between:
+              arguments: {min_value: 0, max_value: 40}
+
+  - name: dim_geography
+    columns:
+      - name: state_code
+        tests: [not_null, unique]
+
+  - name: dim_date
+    columns:
+      - name: month_key
+        tests: [not_null, unique]

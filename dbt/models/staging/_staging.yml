@@ -1,0 +1,59 @@
+version: 2
+
+models:
+  - name: stg_freddie__origination
+    description: Typed and decoded loan origination attributes; sentinel codes set to NULL.
+    columns:
+      - name: loan_id
+        tests: [not_null, unique]
+      - name: credit_score
+        tests:
+          - value_between:
+              arguments: {min_value: 300, max_value: 850}
+      - name: orig_ltv
+        tests:
+          - value_between:
+              arguments: {min_value: 1, max_value: 998}
+      - name: orig_interest_rate
+        tests:
+          - not_null
+          - value_between:
+              arguments: {min_value: 0.5, max_value: 20}
+      - name: fico_band
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Missing', '<620', '620-679', '680-719', '720-759', '760+']
+      - name: state_code
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('state_reference')
+                field: state_code
+
+  - name: stg_freddie__performance
+    description: Typed monthly performance records with decoded delinquency state.
+    columns:
+      - name: loan_id
+        tests: [not_null]
+      - name: period_month
+        tests: [not_null]
+      - name: current_upb
+        tests: [not_negative]
+      - name: dq_state
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Current', '30', '60', '90', '120+', 'REO', 'Prepaid', 'Liquidated', 'Other exit', 'Unknown']
+    tests:
+      - dbt_utils_unique_combination:
+          arguments:
+            columns: [loan_id, period_month]
+
+  - name: stg_fred__macro_monthly
+    description: Monthly macro panel by geography (state codes and 'US').
+    tests:
+      - dbt_utils_unique_combination:
+          arguments:
+            columns: [geo, month]

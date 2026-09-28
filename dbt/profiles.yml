@@ -1,0 +1,11 @@
+loanlens:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('LOANLENS_WAREHOUSE', '../data/warehouse/loanlens.duckdb') }}"
+      threads: 2
+      # Bounded memory for the 75M-row real dataset: spill to disk instead of failing.
+      settings:
+        memory_limit: "{{ env_var('LOANLENS_DUCKDB_MEMORY', '8GB') }}"
+        preserve_insertion_order: false

@@ -1,0 +1,86 @@
+// LoanLens - DAX measures. Create a blank table named "_Measures" and paste these in.
+// Tables come from powerbi/data (see load_loanlens.pq). Relationships:
+//   fct_portfolio_segment_monthly[month_key]  -> dim_date[month_key]         (many-to-one)
+//   fct_portfolio_segment_monthly[state_code] -> dim_geography[state_code]   (many-to-one)
+//   mart_portfolio_monthly[month_key]          -> dim_date[month_key]
+//   mart_roll_rate_summary[month_key]          -> dim_date[month_key]
+//   dim_loan[state_code]                       -> dim_geography[state_code]
+//   rpt_active_portfolio_risk[state_code]      -> dim_geography[state_code]
+
+// ---- Portfolio overview ---------------------------------------------------------------
+Active Loans = SUM ( fct_portfolio_segment_monthly[active_loans] )
+Outstanding Balance = SUM ( fct_portfolio_segment_monthly[active_upb] )
+
+// Latest month in the current filter context (for card visuals)
+Latest Month Key = MAX ( fct_portfolio_segment_monthly[month_key] )
+Active Loans (Latest) =
+    CALCULATE ( [Active Loans], fct_portfolio_segment_monthly[month_key] = [Latest Month Key] )
+Outstanding Balance (Latest) =
+    CALCULATE ( [Outstanding Balance], fct_portfolio_segment_monthly[month_key] = [Latest Month Key] )
+
+DQ30+ Rate =
+    DIVIDE ( SUM ( fct_portfolio_segment_monthly[dq30_plus_loans] ), [Active Loans] )
+Serious DQ Rate (90+) =
+    DIVIDE ( SUM ( fct_portfolio_segment_monthly[dq90_plus_loans] ), [Active Loans] )
+DQ30+ Rate (Balance) =
+    DIVIDE ( SUM ( fct_portfolio_segment_monthly[dq30_plus_upb] ), [Outstanding Balance] )
+Serious DQ Rate (Latest) =
+    CALCULATE ( [Serious DQ Rate (90+)], fct_portfolio_segment_monthly[month_key] = [Latest Month Key] )
+Serious DQ Rate vs 12M Ago (bps) =
+    VAR latest = [Latest Month Key]
+    VAR prior = latest - 100              // month_key is YYYYMM
+    RETURN ( [Serious DQ Rate (Latest)]
+           - CALCULATE ( [Serious DQ Rate (90+)], fct_portfolio_segment_monthly[month_key] = prior ) ) * 10000
+
+// Speeds (from the portfolio mart; annualised)
+CPR = AVERAGE ( mart_portfolio_monthly[cpr] )
+CDR = AVERAGE ( mart_portfolio_monthly[cdr] )
+Net Loss = SUM ( fct_portfolio_segment_monthly[net_loss] )
+
+// ---- Vintage curves (mart_vintage_curves; x = months_since_first_payment, legend = vintage_year)
+Cumulative Default Rate = MAX ( mart_vintage_curves[cum_default_rate] )
+Cumulative Loss Rate = MAX ( mart_vintage_curves[cum_loss_rate] )
+Cumulative Prepay Rate = MAX ( mart_vintage_curves[cum_prepay_rate] )
+
+// ---- Roll rates (mart_roll_rates; matrix rows = from_state, columns = to_state)
+Roll Rate =
+    DIVIDE (
+        SUM ( mart_roll_rates[loans] ),
+        CALCULATE ( SUM ( mart_roll_rates[loans] ), ALLEXCEPT ( mart_roll_rates, mart_roll_rates[from_state], mart_roll_rates[period_month] ) )
+    )
+Roll Rate (Pooled) =
+    DIVIDE (
+        SUM ( mart_roll_rates[loans] ),
+        CALCULATE ( SUM ( mart_roll_rates[loans] ), REMOVEFILTERS ( mart_roll_rates[to_state] ) )
+    )
+Current to 30 = AVERAGE ( mart_roll_rate_summary[current_to_30] )
+30 to 60 = AVERAGE ( mart_roll_rate_summary[dq30_to_60] )
+60 to 90 = AVERAGE ( mart_roll_rate_summary[dq60_to_90] )
+30-Day Cure Rate = AVERAGE ( mart_roll_rate_summary[dq30_cure] )
+
+// ---- Risk segments (rpt_active_portfolio_risk: one row per active loan)
+Expected Loss 12M = SUM ( rpt_active_portfolio_risk[expected_loss] )
+Book Balance = SUM ( rpt_active_portfolio_risk[current_upb] )
+Expected Loss Rate = DIVIDE ( [Expected Loss 12M], [Book Balance] )
+Balance-Weighted PD 12M =
+    DIVIDE ( SUMX ( rpt_active_portfolio_risk, rpt_active_portfolio_risk[pd_12m] * rpt_active_portfolio_risk[current_upb] ), [Book Balance] )
+Average Mark-to-Market LTV = AVERAGE ( rpt_active_portfolio_risk[mtm_ltv] )
+
+// ---- Stress test (rpt_stress_loss_distribution: one row per scenario)
+MC Scenarios = CALCULATE ( COUNTROWS ( rpt_stress_loss_distribution ), rpt_stress_loss_distribution[scenario_type] = "monte_carlo" )
+Expected Stress Loss Rate =
+    CALCULATE ( AVERAGE ( rpt_stress_loss_distribution[loss_rate] ), rpt_stress_loss_distribution[scenario_type] = "monte_carlo" )
+Stress Loss 99th Percentile =
+    CALCULATE ( PERCENTILEX.INC ( rpt_stress_loss_distribution, rpt_stress_loss_distribution[loss_rate], 0.99 ),
+                rpt_stress_loss_distribution[scenario_type] = "monte_carlo" )
+Expected Shortfall 99 =
+    VAR var99 = [Stress Loss 99th Percentile]
+    RETURN CALCULATE ( AVERAGE ( rpt_stress_loss_distribution[loss_rate] ),
+                       rpt_stress_loss_distribution[scenario_type] = "monte_carlo",
+                       rpt_stress_loss_distribution[loss_rate] >= var99 )
+Severely Adverse Loss Rate =
+    CALCULATE ( MAX ( rpt_stress_loss_distribution[loss_rate] ), rpt_stress_loss_distribution[scenario_id] = "Severely adverse" )
+
+// ---- Data quality (mart_data_quality)
+DQ Checks = SUM ( mart_data_quality[checks] )
+DQ Pass Rate = DIVIDE ( SUM ( mart_data_quality[checks_passed] ), [DQ Checks] )

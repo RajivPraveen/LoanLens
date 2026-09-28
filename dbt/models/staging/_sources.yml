@@ -1,0 +1,44 @@
+version: 2
+
+sources:
+  - name: freddie
+    schema: raw
+    description: Freddie Mac Single-Family Loan-Level Dataset, loaded by `loanlens ingest`.
+    tables:
+      - name: origination
+        description: One row per loan, attributes at origination (32-field layout).
+        columns:
+          - name: loan_sequence_number
+            tests: [not_null, unique]
+      - name: performance
+        description: One row per loan per monthly reporting period.
+        columns:
+          - name: loan_sequence_number
+            tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('freddie', 'origination')
+                    field: loan_sequence_number
+
+  - name: fred
+    schema: raw
+    description: FRED macro series (unemployment, FHFA HPI, 30y mortgage rate).
+    tables:
+      - name: fred_observations
+      - name: fred_series
+
+  - name: meta
+    schema: meta
+    description: Pipeline bookkeeping written by the loader.
+    tables:
+      - name: ingest_log
+      - name: dq_results
+
+  - name: ml
+    schema: ml
+    description: Model outputs written back by the Python modelling steps.
+    tables:
+      - name: loan_scores
+      - name: stress_scenarios
+      - name: stress_summary

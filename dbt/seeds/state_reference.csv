@@ -1,0 +1,52 @@
+state_code,state_name,census_region,census_division,judicial_foreclosure,population_millions,price_factor,zip3
+AL,Alabama,South,East South Central,false,5.0,0.80,350
+AK,Alaska,West,Pacific,false,0.73,1.10,995
+AZ,Arizona,West,Mountain,false,7.2,1.05,850
+AR,Arkansas,South,West South Central,false,3.0,0.75,720
+CA,California,West,Pacific,false,39.5,1.85,900
+CO,Colorado,West,Mountain,false,5.8,1.35,800
+CT,Connecticut,Northeast,New England,true,3.6,1.20,060
+DE,Delaware,South,South Atlantic,true,1.0,1.05,197
+DC,District of Columbia,South,South Atlantic,false,0.69,1.70,200
+FL,Florida,South,South Atlantic,true,21.5,1.05,330
+GA,Georgia,South,South Atlantic,false,10.7,0.95,300
+HI,Hawaii,West,Pacific,true,1.46,1.95,967
+ID,Idaho,West,Mountain,false,1.84,1.05,832
+IL,Illinois,Midwest,East North Central,true,12.8,1.00,600
+IN,Indiana,Midwest,East North Central,true,6.8,0.78,460
+IA,Iowa,Midwest,West North Central,true,3.2,0.80,500
+KS,Kansas,Midwest,West North Central,true,2.9,0.82,660
+KY,Kentucky,South,East South Central,true,4.5,0.80,400
+LA,Louisiana,South,West South Central,true,4.66,0.82,700
+ME,Maine,Northeast,New England,true,1.36,0.95,040
+MD,Maryland,South,South Atlantic,false,6.2,1.30,206
+MA,Massachusetts,Northeast,New England,false,7.0,1.55,010
+MI,Michigan,Midwest,East North Central,false,10.1,0.82,480
+MN,Minnesota,Midwest,West North Central,false,5.7,1.05,550
+MS,Mississippi,South,East South Central,false,2.96,0.72,386
+MO,Missouri,Midwest,West North Central,false,6.15,0.82,630
+MT,Montana,West,Mountain,false,1.08,1.05,590
+NE,Nebraska,Midwest,West North Central,false,1.96,0.85,680
+NV,Nevada,West,Mountain,false,3.1,1.15,889
+NH,New Hampshire,Northeast,New England,false,1.38,1.15,030
+NJ,New Jersey,Northeast,Middle Atlantic,true,9.3,1.40,070
+NM,New Mexico,West,Mountain,true,2.1,0.90,870
+NY,New York,Northeast,Middle Atlantic,true,20.2,1.40,100
+NC,North Carolina,South,South Atlantic,false,10.4,0.92,270
+ND,North Dakota,Midwest,West North Central,true,0.78,0.90,580
+OH,Ohio,Midwest,East North Central,true,11.8,0.78,430
+OK,Oklahoma,South,West South Central,true,3.96,0.75,730
+OR,Oregon,West,Pacific,false,4.2,1.25,970
+PA,Pennsylvania,Northeast,Middle Atlantic,true,13.0,0.90,150
+RI,Rhode Island,Northeast,New England,false,1.1,1.15,028
+SC,South Carolina,South,South Atlantic,true,5.1,0.88,290
+SD,South Dakota,Midwest,West North Central,true,0.89,0.88,570
+TN,Tennessee,South,East South Central,false,6.9,0.90,370
+TX,Texas,South,West South Central,false,29.1,0.95,750
+UT,Utah,West,Mountain,false,3.27,1.25,840
+VT,Vermont,Northeast,New England,true,0.64,1.00,050
+VA,Virginia,South,South Atlantic,false,8.6,1.20,220
+WA,Washington,West,Pacific,false,7.7,1.40,980
+WV,West Virginia,South,South Atlantic,false,1.79,0.70,247
+WI,Wisconsin,Midwest,East North Central,true,5.9,0.88,530
+WY,Wyoming,West,Mountain,false,0.58,1.00,820
