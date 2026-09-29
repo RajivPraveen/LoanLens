@@ -4,7 +4,11 @@ The portfolio, vintage, roll-rate, segment, stress and data-quality pages mirror
 report; the start page and the interactive pieces (vintage picker, stress-scenario explorer,
 approval-policy simulator) exist only here. plotly.js is inlined so the file works offline.
 
-Chart rules applied (validated reference palette): categorical slots in fixed order, one
+Design: calm and minimal - neutral surfaces, one navy accent for the UI, a muted data palette
+(validated with the dataviz palette validator in both themes), plain-English labels, and an
+always-visible "How to read this" line under every chart title.
+
+Chart rules applied: categorical slots in fixed order, one
 y-axis per chart, 2px lines, >= 8px markers with a 2px surface ring, 4px rounded bar ends,
 hairline solid grids, unified hover (crosshair + every series) on time series, per-mark
 tooltips elsewhere, a table view behind every chart, and a selected dark theme (the dark
@@ -25,14 +29,14 @@ from plotly.offline import get_plotlyjs
 from loanlens.config import Settings
 from loanlens.warehouse import connect
 
-LIGHT = {"surface": "#fcfcfb", "page": "#f9f9f7", "ink": "#0b0b0b", "ink2": "#52514e",
-         "muted": "#898781", "grid": "#e1e0d9", "axis": "#c3c2b7", "deemph": "#c9c8c1",
-         "band": "rgba(42,120,214,0.14)", "recession": "rgba(137,135,129,0.12)"}
-SERIES_LIGHT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
-SERIES_DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"]
-SEQ = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
+LIGHT = {"surface": "#ffffff", "page": "#f6f7f9", "ink": "#16202c", "ink2": "#4a5563",
+         "muted": "#8a929c", "grid": "#e9ebee", "axis": "#d2d6dc", "deemph": "#cfd3d8",
+         "band": "rgba(59,110,168,0.13)", "recession": "rgba(138,146,156,0.13)"}
+SERIES_LIGHT = ["#3b6ea8", "#d0643c", "#2f9a7e", "#d19a1e", "#c8628b", "#5f8a2e", "#6a5aa8", "#b8433f"]
+SERIES_DARK = ["#5b8fd0", "#d9764f", "#3aa889", "#b5861c", "#c4688f", "#6f9c3c", "#8f82d8", "#d8625d"]
+SEQ = ["#e4ecf5", "#bccfe7", "#93b1d6", "#6590c4", "#3b6ea8", "#2a5285", "#1b3a61"]
 SEQ_SCALE = [[i / (len(SEQ) - 1), c] for i, c in enumerate(SEQ)]
-FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif'
+FONT = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif'
 
 # Tile-grid map of U.S. states: (column, row). Offline-safe and every state is the same size.
 TILE_GRID = {
@@ -151,8 +155,9 @@ class Page:
 
     def intro(self, question: str, answer: str) -> None:
         """Plain-English lead for the tab: the question it answers and the short answer."""
-        self.blocks.append(f'<div class="intro"><p class="q">{html.escape(question)}</p>'
-                           f'<p class="a">{answer}</p></div>')
+        self.blocks.append(f'<div class="intro"><div><span class="lab">The question</span>'
+                           f'<p class="q">{html.escape(question)}</p></div>'
+                           f'<div><span class="lab">The short answer</span><p class="a">{answer}</p></div></div>')
 
     def chart(self, fig_data: list, layout: dict, title: str, subtitle: str = "",
               table: str = "", wide: bool = False, explain: str = "", controls: str = "",
@@ -161,8 +166,7 @@ class Page:
         self.figs.append({"id": cid, "data": fig_data, "layout": layout})
         tv = (f'<button class="tv" aria-expanded="false" aria-controls="{cid}-t">Table view</button>'
               if table else "")
-        why = (f'<details class="why"><summary>What this shows and why it matters</summary><p>{explain}</p></details>'
-               if explain else "")
+        why = f'<p class="why"><b>How to read this:</b> {explain}</p>' if explain else ""
         self.blocks.append(
             f'<figure class="card{" wide" if wide else ""}"><figcaption><div><h3>{html.escape(title)}</h3>'
             f'<p class="sub">{html.escape(subtitle)}</p></div>{tv}</figcaption>{why}{controls}'
@@ -182,43 +186,43 @@ def _fig_json(traces, layout) -> tuple[list, dict]:
 # ---- pages ---------------------------------------------------------------------------------
 
 def _overview(con, s: dict) -> Page:
-    p = Page("overview", "Portfolio overview")
+    p = Page("overview", "How loans are doing")
     pm = con.execute("select * from analytics.mart_portfolio_monthly order by period_month").df()
     pm["period_month"] = pd.to_datetime(pm["period_month"])
     last, prev = pm.iloc[-1], pm.iloc[-13]
     tail = pm.tail(24)
-    ch = lambda a, b: f"{(a - b) * 1e4:+.0f} bps vs 12 months ago"  # noqa: E731
+    ch = lambda a, b: f"{(a - b) * 100:+.2f} points vs 12 months ago"  # noqa: E731
     peak = pm.loc[pm["serious_dq_rate"].idxmax()]
     p.intro("How are the loans doing right now?",
             f"<b>{int(last['active_loans']):,}</b> loans worth <b>{compact(last['active_upb'], True)}</b> are still being repaid. "
             f"<b>{pct(last['serious_dq_rate'])}</b> of them are seriously behind (90+ days late), against a peak of "
             f"{pct(peak['serious_dq_rate'], 1)} in {peak['period_month']:%B %Y} during the housing crisis.")
     p.tiles([
-        {"label": "Outstanding balance", "value": compact(last["active_upb"], True), "hero": True,
+        {"label": "Money still owed", "value": compact(last["active_upb"], True), "hero": True,
          "delta": f"{last['active_upb'] / prev['active_upb'] - 1:+.1%} vs 12 months ago", "delta_good": None,
          "spark": tail["active_upb"]},
-        {"label": "Active loans", "value": f"{int(last['active_loans']):,}",
+        {"label": "Loans being repaid", "value": f"{int(last['active_loans']):,}",
          "delta": f"{last['active_loans'] / prev['active_loans'] - 1:+.1%} vs 12 months ago", "delta_good": None,
          "spark": tail["active_loans"]},
-        {"label": "30+ days delinquent", "value": pct(last["dq30_plus_rate"]),
+        {"label": "Behind on payments (30+ days)", "value": pct(last["dq30_plus_rate"]),
          "delta": ch(last["dq30_plus_rate"], prev["dq30_plus_rate"]),
          "delta_good": bool(last["dq30_plus_rate"] <= prev["dq30_plus_rate"]),
          "up": bool(last["dq30_plus_rate"] > prev["dq30_plus_rate"]), "spark": tail["dq30_plus_rate"]},
-        {"label": "Seriously delinquent (90+)", "value": pct(last["serious_dq_rate"]),
+        {"label": "Seriously behind (90+ days)", "value": pct(last["serious_dq_rate"]),
          "delta": ch(last["serious_dq_rate"], prev["serious_dq_rate"]),
          "delta_good": bool(last["serious_dq_rate"] <= prev["serious_dq_rate"]),
          "up": bool(last["serious_dq_rate"] > prev["serious_dq_rate"]), "spark": tail["serious_dq_rate"]},
-        {"label": "12-month expected loss", "value": compact(float(s["book_expected_loss_12m"]), True),
-         "delta": f"{float(s['book_pd_12m_upb_weighted']):.2%} balance-weighted PD", "delta_good": None},
-        {"label": "Stress loss, 99th percentile", "value": pct(float(s["var99_loss_rate"])),
+        {"label": "Expected losses, next 12 months", "value": compact(float(s["book_expected_loss_12m"]), True),
+         "delta": f"average predicted default risk {float(s['book_pd_12m_upb_weighted']):.2%}", "delta_good": None},
+        {"label": "Loss in a 1-in-100 recession", "value": pct(float(s["var99_loss_rate"])),
          "delta": f"{compact(float(s['var99_loss_amount']), True)} over {s['horizon_months']} months", "delta_good": None},
     ])
     x = pm["period_month"]
     lay = time_axis(base_layout(yaxis=dict(tickformat=".1%", rangemode="tozero")))
-    p.chart(_fig_json([line(x, pm["dq30_plus_rate"], "30+ days delinquent", SERIES_LIGHT[2]),
-                       line(x, pm["serious_dq_rate_ex_forbearance"], "90+ excluding COVID forbearance", SERIES_LIGHT[1]),
-                       line(x, pm["serious_dq_rate"], "90+ days delinquent", SERIES_LIGHT[0])], lay)[0], lay,
-            "Delinquency rate", "Share of active loans; shaded bands are NBER recessions",
+    p.chart(_fig_json([line(x, pm["dq30_plus_rate"], "30+ days late", SERIES_LIGHT[2]),
+                       line(x, pm["serious_dq_rate_ex_forbearance"], "90+ days late, excluding COVID payment pauses", SERIES_LIGHT[1]),
+                       line(x, pm["serious_dq_rate"], "90+ days late", SERIES_LIGHT[0])], lay)[0], lay,
+            "Share of borrowers behind on payments", "Share of loans being repaid; grey bands are US recessions",
             table_html(pm[["period_month", "dq30_plus_rate", "serious_dq_rate", "serious_dq_rate_ex_forbearance"]]
                        .iloc[::-12].head(30), {"period_month": lambda v: v.strftime("%Y-%m"),
                                                "dq30_plus_rate": pct, "serious_dq_rate": pct,
@@ -231,9 +235,9 @@ def _overview(con, s: dict) -> Page:
     lay = time_axis(base_layout(yaxis=dict(tickprefix="$", ticksuffix="B", tickformat=",.0f"), showlegend=False))
     p.chart(_fig_json([go.Scatter(x=x, y=pm["active_upb"] / 1e9, name="Outstanding balance", mode="lines",
                                   line=dict(color=SERIES_LIGHT[0], width=2), fill="tozeroy",
-                                  fillcolor="rgba(42,120,214,0.10)",
+                                  fillcolor="rgba(59,110,168,0.10)",
                                   hovertemplate="<b>$%{y:,.2f}B</b> outstanding<extra></extra>")], lay)[0], lay,
-            "Outstanding balance", "Unpaid principal of active loans",
+            "Money still owed", "Unpaid balance of loans still being repaid",
             table_html(pm[["period_month", "active_loans", "active_upb"]].iloc[::-12].head(30),
                        {"period_month": lambda v: v.strftime("%Y-%m"), "active_loans": lambda v: f"{int(v):,}",
                         "active_upb": lambda v: compact(v, True)}),
@@ -244,8 +248,8 @@ def _overview(con, s: dict) -> Page:
                       "interest income a lender or investor was counting on.",
                "cdr": "The share of the book falling into default each year. It spiked in 2009-2010 as house prices "
                       "fell and unemployment rose, the combination that turns missed payments into losses."}
-    for col, name, sub in (("cpr", "Prepayment speed (CPR)", "Annualised voluntary payoff rate - refinance waves in 2003, 2012, 2020-21"),
-                           ("cdr", "Default speed (CDR)", "Annualised rate of balance entering default")):
+    for col, name, sub in (("cpr", "Loans paid off early", "Share of the balance paid off early each year (CPR) - refinance waves in 2003, 2012, 2020-21"),
+                           ("cdr", "Loans defaulting", "Share of the balance defaulting each year (CDR)")):
         lay = time_axis(base_layout(yaxis=dict(tickformat=".0%" if col == "cpr" else ".1%", rangemode="tozero"),
                                     showlegend=False))
         p.chart(_fig_json([line(x, pm[col].rolling(3, min_periods=1).mean(), name + ", 3-month average",
@@ -262,7 +266,7 @@ def _vintages(con) -> tuple[Page, dict]:
     The traces are drawn in the browser from VINT so the picker can restyle them; colors are
     assigned to a year when it is picked and kept until it is unpicked (color follows the entity).
     """
-    p = Page("vintages", "Vintage performance")
+    p = Page("vintages", "Loans by year made")
     vc = con.execute("select * from analytics.mart_vintage_curves where months_since_first_payment <= 180 "
                      "order by vintage_year, months_since_first_payment").df()
     lv = con.execute("select * from analytics.mart_loss_by_vintage order by vintage_year").df()
@@ -280,8 +284,8 @@ def _vintages(con) -> tuple[Page, dict]:
                        for y, g in vc.groupby("vintage_year")}}
     chips = "".join(f'<button class="chip" data-year="{y}" aria-pressed="false"><span class="sw"></span>{y}</button>'
                     for y in years)
-    p.html_block('<div class="card wide picker"><div class="picker-head"><b>Compare vintages</b>'
-                 '<span class="sub">Pick up to four origination years; the rest stay in grey for context.</span>'
+    p.html_block('<div class="card wide picker"><div class="picker-head"><b>Compare years</b>'
+                 '<span class="sub">Pick up to four years the loans were made; the rest stay in grey for context.</span>'
                  '<button class="linkbtn" id="vint-reset">Reset</button></div>'
                  f'<div class="chips" role="group" aria-label="Vintages to highlight">{chips}</div>'
                  '<p class="sub" id="vint-note" aria-live="polite"></p></div>')
@@ -291,12 +295,12 @@ def _vintages(con) -> tuple[Page, dict]:
            "default_rate_24m": pct, "lifetime_default_rate": pct, "loss_severity": lambda v: pct(v, 1),
            "cum_loss_rate": pct, "prepaid_share": lambda v: pct(v, 1)}
     for key, title, sub, tick, explain in (
-            ("d", "Cumulative default rate by vintage",
-             "Share of each origination year's loans that reached a credit event, by months since first payment", ".0%",
+            ("d", "Share of loans that defaulted, by year made",
+             "Running total since the first payment (default = 90+ days late, foreclosure or distressed sale)", ".0%",
              "Each line follows one year's loans from their first payment onwards. A steep, high line means many of "
              "those borrowers stopped paying. Loans made in 2005-2008 look very different from the rest, even though "
              "their borrowers had similar credit scores: they were made at the top of the housing market."),
-            ("l", "Cumulative loss rate by vintage", "Net credit losses as a share of original balance", ".1%",
+            ("l", "Money lost, by year made", "Running total of losses after the home was sold, as a share of the amount lent", ".1%",
              "Not every default costs money: the house is sold and mortgage insurance pays part of the shortfall. "
              "This is what was actually lost, as a share of the amount lent. Losses arrive later than defaults, "
              "because selling a foreclosed home takes a year or more.")):
@@ -307,10 +311,7 @@ def _vintages(con) -> tuple[Page, dict]:
 
 
 def _roll_rates(con) -> Page:
-    p = Page("rolls", "Roll rates")
-    p.intro("Are late borrowers catching up or falling further behind?",
-            "Every month a loan either stays where it is, catches up, falls one step further behind, or leaves the "
-            "book. These <b>roll rates</b> are the earliest warning that trouble is building.")
+    p = Page("rolls", "Late payments")
     last = con.execute("select max(period_month) from analytics.mart_roll_rates").fetchone()[0]
     rr = con.execute(f"""
         select from_state, to_state, sum(loans) as loans
@@ -319,12 +320,21 @@ def _roll_rates(con) -> Page:
     order_to = ["Current", "30", "60", "90", "120+", "REO", "Prepaid", "Liquidated"]
     rr = rr[rr["from_state"].isin(order_from) & rr["to_state"].isin(order_to)]
     # Non-numeric labels: plotly would read "30"/"60" as numbers (or category indices).
-    label = {"30": "30 days", "60": "60 days", "90": "90 days", "120+": "120+ days"}
+    label = {"30": "30 days late", "60": "60 days late", "90": "90 days late", "120+": "120+ days late",
+             "Current": "Paying on time", "REO": "Foreclosed", "Prepaid": "Paid off", "Liquidated": "Sold at a loss"}
     rr["from_state"], rr["to_state"] = rr["from_state"].replace(label), rr["to_state"].replace(label)
     order_from = [label.get(x, x) for x in order_from]
     order_to = [label.get(x, x) for x in order_to]
     rr["rate"] = rr["loans"] / rr.groupby("from_state")["loans"].transform("sum")
     mat = rr.pivot(index="from_state", columns="to_state", values="rate").reindex(index=order_from, columns=order_to)
+    cure30 = mat.loc["30 days late", "Paying on time"]
+    worse30 = mat.loc["30 days late", "60 days late"]
+    stay120 = mat.loc["120+ days late", "120+ days late"]
+    p.intro("Are late borrowers catching up or falling further behind?",
+            f"Early on, many catch up: of borrowers 30 days late, <b>{cure30:.0%}</b> are back on time a month later, "
+            f"{worse30:.0%} fall further behind and the rest stay 30 days late. Once a loan is 120+ days late it rarely recovers: <b>{stay120:.0%}</b> "
+            "are still that late the next month. These month-to-month moves (<b>roll rates</b>) are the earliest "
+            "warning that trouble is building.")
     z = mat.to_numpy()
     text = [[("" if np.isnan(v) else f"{v:.1%}") for v in row] for row in z]
     zmax = np.nanmax(z)
@@ -339,10 +349,10 @@ def _roll_rates(con) -> Page:
                                  categoryorder="array", categoryarray=order_to),
                       yaxis=dict(title="State this month", autorange="reversed", showgrid=False, type="category",
                                  categoryorder="array", categoryarray=order_from),
-                      margin=dict(l=90, r=20, t=60, b=20))
+                      margin=dict(l=120, r=20, t=70, b=20))
     tbl = mat.reset_index().rename(columns={"from_state": "from \\ to"})
-    p.chart(_fig_json([heat], lay)[0], lay, "Transition matrix, last 12 months",
-            "Where loans in each delinquency state went the following month",
+    p.chart(_fig_json([heat], lay)[0], lay, "Where loans went the next month",
+            "Last 12 months: each row is how late a loan was this month, each column where it was a month later",
             table_html(tbl, {c: pct for c in order_to}), wide=True,
             explain="Read across a row: of the loans in that state this month, where were they next month? Almost all "
                     "current loans stay current. The further behind a borrower is, the less likely they are to catch up "
@@ -353,8 +363,8 @@ def _roll_rates(con) -> Page:
     sm = lambda c: ts[c].rolling(3, min_periods=1).mean()  # noqa: E731
     x = ts["period_month"]
     lay = time_axis(base_layout(yaxis=dict(tickformat=".2%", rangemode="tozero"), showlegend=False))
-    p.chart(_fig_json([line(x, sm("current_to_30"), "Current to 30 days", SERIES_LIGHT[0])], lay)[0], lay,
-            "Current to 30 days late", "Monthly share of current loans missing a payment (3-month average) - the earliest warning signal",
+    p.chart(_fig_json([line(x, sm("current_to_30"), "On time to 30 days late", SERIES_LIGHT[0])], lay)[0], lay,
+            "Borrowers who just missed a payment", "Share of on-time borrowers who fell 30 days behind each month (3-month average) - the earliest warning",
             table_html(ts[["period_month", "current_to_30"]].iloc[::-12].head(30),
                        {"period_month": lambda v: v.strftime("%Y-%m"), "current_to_30": lambda v: pct(v, 3)}),
             explain="The share of borrowers who were paying on time last month but missed a payment this month. "
@@ -362,8 +372,8 @@ def _roll_rates(con) -> Page:
     lay = time_axis(base_layout(yaxis=dict(tickformat=".0%", rangemode="tozero")))
     p.chart(_fig_json([line(x, sm("dq30_to_60"), "30 to 60 days", SERIES_LIGHT[0], ".1%"),
                        line(x, sm("dq60_to_90"), "60 to 90 days", SERIES_LIGHT[1], ".1%"),
-                       line(x, sm("dq30_cure"), "30 days back to current (cure)", SERIES_LIGHT[2], ".1%")], lay)[0], lay,
-            "Roll-forward and cure rates", "Rising roll rates with falling cures signal trouble building in the pipeline",
+                       line(x, sm("dq30_cure"), "30 days late back to on time (cured)", SERIES_LIGHT[2], ".1%")], lay)[0], lay,
+            "Falling further behind vs. catching up", "Rising 'further behind' lines with a falling 'caught up' line mean trouble is building",
             table_html(ts[["period_month", "dq30_to_60", "dq60_to_90", "dq30_cure"]].iloc[::-12].head(30),
                        {"period_month": lambda v: v.strftime("%Y-%m"), "dq30_to_60": lambda v: pct(v, 1),
                         "dq60_to_90": lambda v: pct(v, 1), "dq30_cure": lambda v: pct(v, 1)}),
@@ -374,11 +384,7 @@ def _roll_rates(con) -> Page:
 
 
 def _segments(con) -> Page:
-    p = Page("segments", "Risk segments")
-    p.intro("Where is the risk concentrated?",
-            "Expected loss combines how likely a loan is to default (the model's PD), how much would be lost if it "
-            "did, and how much is owed. It is highest for borrowers with low credit scores who borrowed close to the "
-            "full value of the home.")
+    p = Page("segments", "Where the risk is")
     seg = con.execute("select * from reporting.rpt_risk_segments_el").df()
     fico_order = ["<620", "620-679", "680-719", "720-759", "760+"]
     ltv_order = ["<=60", "61-80", "81-90", "91-95", ">95"]
@@ -389,25 +395,32 @@ def _segments(con) -> Page:
     loans = g.pivot(index="fico_band", columns="ltv_band", values="loans").reindex(index=fico_order, columns=ltv_order)
     z = mat.to_numpy()
     zmax = np.nanmax(z)
+    st_ = mat.stack()
+    (hf, hl), (lf, ll) = st_.idxmax(), st_.idxmin()
+    p.intro("Where is the risk concentrated?",
+            f"The riskiest group is borrowers with a credit score of <b>{hf}</b> who borrowed <b>{hl}%</b> of the "
+            f"home's value: expected loss over the next year is <b>{st_.max():.2%}</b> of the balance. The safest "
+            f"(score {lf}, borrowed {ll}%) is <b>{st_.min():.3%}</b>, about <b>{st_.max() / st_.min():,.0f}x</b> less. "
+            "(Expected loss = chance of default x share lost x amount owed.)")
     heat = go.Heatmap(z=z, x=ltv_order, y=fico_order, colorscale=SEQ_SCALE, zmin=0, xgap=2, ygap=2,
                       customdata=loans.to_numpy(),
-                      colorbar=dict(title="EL rate", tickformat=".2%", outlinewidth=0, thickness=12),
-                      hovertemplate="<b>%{z:.3%}</b> 12m expected loss rate<br>FICO %{y}, LTV %{x}<br>%{customdata:,} loans<extra></extra>")
+                      colorbar=dict(title="Expected<br>loss", tickformat=".2%", outlinewidth=0, thickness=12),
+                      hovertemplate="<b>%{z:.3%}</b> expected loss over 12 months<br>Credit score %{y}, borrowed %{x}% of home value<br>%{customdata:,} loans<extra></extra>")
     ann = [dict(x=ltv_order[j], y=fico_order[i], text=f"{z[i][j]:.2%}", showarrow=False,
                 font=dict(size=11, color="#ffffff" if z[i][j] > zmax * 0.45 else LIGHT["ink"]))
            for i in range(len(fico_order)) for j in range(len(ltv_order)) if not np.isnan(z[i][j])]
     lay = base_layout(height=360, showlegend=False, annotations=ann,
-                      xaxis=dict(title="Original LTV band", showgrid=False, type="category"),
+                      xaxis=dict(title="Loan as a % of the home's value (LTV)", showgrid=False, type="category"),
                       yaxis=dict(title="Credit score band", showgrid=False, type="category"),
                       margin=dict(l=100, r=20, t=16, b=50))
-    p.chart(_fig_json([heat], lay)[0], lay, "Expected loss rate by credit score and LTV",
-            "12-month PD x LGD x balance under the baseline economy, as a share of balance",
+    p.chart(_fig_json([heat], lay)[0], lay, "Expected loss by credit score and loan size vs. home value",
+            "Next 12 months, normal economy: chance of default x share lost x balance, as a % of the balance",
             table_html(g.assign(el_rate=g["el_rate"]).sort_values(["fico_band", "ltv_band"]),
                        {"upb": lambda v: compact(v, True), "el": lambda v: compact(v, True),
                         "loans": lambda v: f"{int(v):,}", "el_rate": lambda v: pct(v, 3)}),
             explain="Each cell is a group of today's loans, by the borrower's credit score and the loan-to-value ratio "
                     "(LTV: how much was borrowed compared with the home's value). Darker cells are expected to lose more "
-                    "over the next 12 months. Low scores and high LTV together are the riskiest corner.")
+                    "over the next 12 months. The rows with credit scores below 680 are the darkest.")
 
     st = seg.groupby("state_code").agg(upb=("upb", "sum"), el=("expected_loss", "sum"), loans=("loans", "sum")).reset_index()
     st["el_rate"] = st["el"] / st["upb"]
@@ -418,13 +431,13 @@ def _segments(con) -> Page:
     tile = go.Scatter(x=xs, y=ys, mode="markers+text", text=st["state_code"], customdata=np.c_[st["el_rate"], st["loans"], st["el"]],
                       marker=dict(symbol="square", size=34, color=st["el_rate"], colorscale=SEQ_SCALE, cmin=0, cmax=vmax,
                                   line=dict(color=LIGHT["surface"], width=2),
-                                  colorbar=dict(title="EL rate", tickformat=".3%", outlinewidth=0, thickness=12)),
+                                  colorbar=dict(title="Expected<br>loss", tickformat=".3%", outlinewidth=0, thickness=12)),
                       textfont=dict(size=10, color=["#ffffff" if v > vmax * 0.45 else LIGHT["ink"] for v in st["el_rate"]]),
-                      hovertemplate="<b>%{customdata[0]:.3%}</b> expected loss rate<br>%{text}: %{customdata[1]:,.0f} loans, $%{customdata[2]:,.0f} EL<extra></extra>",
+                      hovertemplate="<b>%{customdata[0]:.3%}</b> expected loss<br>%{text}: %{customdata[1]:,.0f} loans, $%{customdata[2]:,.0f} expected loss<extra></extra>",
                       showlegend=False)
     lay = base_layout(height=380, showlegend=False,
                       xaxis=dict(visible=False, range=[-0.7, 11.7]), yaxis=dict(visible=False, autorange="reversed", range=[7.7, -0.7]))
-    p.chart(_fig_json([tile], lay)[0], lay, "Geographic risk map", "12-month expected loss rate by state (tile map: every state the same size)",
+    p.chart(_fig_json([tile], lay)[0], lay, "Expected loss by state", "Next 12 months, as a % of the balance (every state drawn the same size)",
             table_html(st.sort_values("el_rate", ascending=False)[["state_code", "loans", "upb", "el", "el_rate"]],
                        {"loans": lambda v: f"{int(v):,}", "upb": lambda v: compact(v, True), "el": lambda v: compact(v, True),
                         "el_rate": lambda v: pct(v, 3)}),
@@ -437,12 +450,12 @@ def _segments(con) -> Page:
                         from analytics.mart_risk_segments group by 1""").df()
     ms = ms.set_index("fico_band").reindex(fico_order).reset_index()
     bar = go.Bar(x=ms["fico_band"], y=ms["dq30_rate_upb"], marker=dict(color=SERIES_LIGHT[0], cornerradius=4),
-                 width=0.5, hovertemplate="<b>%{y:.2%}</b> of balance 30+ days late<br>FICO %{x}<extra></extra>",
+                 width=0.5, hovertemplate="<b>%{y:.2%}</b> of balance 30+ days late<br>Credit score %{x}<extra></extra>",
                  text=[pct(v) for v in ms["dq30_rate_upb"]], textposition="outside", textfont=dict(color=LIGHT["ink2"]))
     lay = base_layout(height=340, showlegend=False, yaxis=dict(tickformat=".1%", rangemode="tozero"),
                       xaxis=dict(title="Credit score band"))
-    p.chart(_fig_json([bar], lay)[0], lay, "Current delinquency by credit score",
-            "Share of balance 30+ days delinquent at the latest month",
+    p.chart(_fig_json([bar], lay)[0], lay, "Borrowers behind on payments, by credit score",
+            "Share of the balance 30+ days late, latest month",
             table_html(ms, {"loans": lambda v: f"{int(v):,}", "upb": lambda v: compact(v, True), "dq30_rate_upb": pct}),
             explain="Credit score is the single strongest predictor of default in the model. Borrowers with scores "
                     "under 620 are many times more likely to be behind on payments today than those above 760.")
@@ -450,7 +463,7 @@ def _segments(con) -> Page:
 
 
 def _stress(con, s: dict) -> tuple[Page, dict]:
-    p = Page("stress", "Stress test")
+    p = Page("stress", "Recession test")
     sc = con.execute("select * from reporting.rpt_stress_loss_distribution").df()
     mc = sc[sc["scenario_type"] == "monte_carlo"]
     named = sc[sc["scenario_type"] == "named"]
@@ -461,32 +474,32 @@ def _stress(con, s: dict) -> tuple[Page, dict]:
             f"({compact(float(s['expected_loss_amount']), True)}); in the worst 1 in 100 it loses "
             f"<b>{pct(float(s['var99_loss_rate']))}</b> ({compact(float(s['var99_loss_amount']), True)}).")
     p.tiles([
-        {"label": "Expected loss", "value": pct(float(s["expected_loss_rate"])),
-         "delta": f"{compact(float(s['expected_loss_amount']), True)} mean of {int(s['n_scenarios']):,} scenarios", "delta_good": None},
-        {"label": "99th percentile loss", "value": pct(float(s["var99_loss_rate"])),
-         "delta": compact(float(s["var99_loss_amount"]), True), "delta_good": None},
-        {"label": "Expected shortfall, worst 1%", "value": pct(float(s["es99_loss_rate"])), "delta_good": None},
-        {"label": "Severely adverse scenario", "value": pct(float(sev["loss_rate"].iloc[0])) if len(sev) else "–",
+        {"label": "Loss in an average economy", "value": pct(float(s["expected_loss_rate"])),
+         "delta": f"{compact(float(s['expected_loss_amount']), True)}, average of {int(s['n_scenarios']):,} simulations", "delta_good": None},
+        {"label": "Loss in a 1-in-100 recession", "value": pct(float(s["var99_loss_rate"])),
+         "delta": f"{compact(float(s['var99_loss_amount']), True)} (99th percentile)", "delta_good": None},
+        {"label": "Average of the worst 1%", "value": pct(float(s["es99_loss_rate"])), "delta": "expected shortfall", "delta_good": None},
+        {"label": "Regulator's severe scenario", "value": pct(float(sev["loss_rate"].iloc[0])) if len(sev) else "–",
          "delta": "unemployment to 10%, house prices -25%", "delta_good": None},
     ])
     hist = go.Histogram(x=mc["loss_rate"].clip(upper=float(mc["loss_rate"].quantile(0.999))), nbinsx=60, marker=dict(color=SERIES_LIGHT[0], line=dict(color=LIGHT["surface"], width=1)),
                         hovertemplate="<b>%{y:,}</b> scenarios with loss %{x}<extra></extra>", showlegend=False)
     shapes, ann = [], []
-    for v, label, y in ((float(s["expected_loss_rate"]), "Expected loss", 1.0), (float(s["var99_loss_rate"]), "99th percentile", 0.82)):
+    for v, label, y in ((float(s["expected_loss_rate"]), "Average", 1.0), (float(s["var99_loss_rate"]), "1-in-100", 0.82)):
         shapes.append(dict(type="line", x0=v, x1=v, y0=0, y1=y, yref="paper", line=dict(color=LIGHT["ink2"], width=1)))
         ann.append(dict(x=v, y=y, yref="paper", text=f"{label} {v:.2%}", showarrow=False, xanchor="left", xshift=4,
                         yanchor="top", font=dict(color=LIGHT["ink2"], size=11)))
     x_hi = float(mc["loss_rate"].quantile(0.999))
     worst = float(mc["loss_rate"].max())
     lay = base_layout(height=340, showlegend=False, shapes=shapes, annotations=ann, bargap=0.02,
-                      xaxis=dict(title=f"Credit loss over {s['horizon_months']} months (% of balance) - axis ends at the 99.9th "
-                                       f"percentile; worst scenario {worst:.2%}", tickformat=".2%",
+                      xaxis=dict(title=f"Loss over {s['horizon_months']} months (% of balance) - axis ends at the 1-in-1,000 "
+                                       f"case; the single worst was {worst:.2%}", tickformat=".2%",
                                  range=[float(mc["loss_rate"].min()) * 0.9, x_hi * 1.05]),
-                      yaxis=dict(title="Scenarios"))
+                      yaxis=dict(title="Simulated economies"))
     bins = pd.cut(mc["loss_rate"], 12)
     tbl = mc.groupby(bins, observed=True).size().reset_index(name="scenarios")
     tbl["loss_rate"] = tbl["loss_rate"].astype(str)
-    p.chart(_fig_json([hist], lay)[0], lay, "Loss distribution", "Each bar counts simulated economies by 3-year credit loss",
+    p.chart(_fig_json([hist], lay)[0], lay, "How much could be lost", "Each bar counts simulated economies by their 3-year loss",
             table_html(tbl),
             explain="Most simulated economies are calm, so most bars sit at small losses. The long tail to the right is "
                     "the recessions. Risk teams and regulators focus on the tail: the <b>99th percentile</b> is the loss "
@@ -496,8 +509,8 @@ def _stress(con, s: dict) -> tuple[Page, dict]:
     paths["month"] = pd.to_datetime(paths["month"])
     colors = {"Baseline": SERIES_LIGHT[2], "Adverse": SERIES_LIGHT[3], "Severely adverse": SERIES_LIGHT[1],
               "GFC replay (2008-2010)": SERIES_LIGHT[6]}
-    for measure, title, fmt in (("unemployment_rate", "Unemployment rate paths", ".1f"),
-                                ("hpi_relative", "House-price paths (vs today)", ".0%")):
+    for measure, title, fmt in (("unemployment_rate", "Unemployment in each scenario", ".1f"),
+                                ("hpi_relative", "House prices in each scenario (vs. today)", ".0%")):
         d = paths[paths["measure"] == measure].copy()
         if measure == "hpi_relative":
             d["value"] = d["value"] - 1
@@ -505,13 +518,15 @@ def _stress(con, s: dict) -> tuple[Page, dict]:
         x = piv.index
         traces = [go.Scatter(x=x, y=piv["Monte Carlo p95"], mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"),
                   go.Scatter(x=x, y=piv["Monte Carlo p5"], mode="lines", line=dict(width=0), fill="tonexty",
-                             fillcolor=LIGHT["band"], name="Monte Carlo 5-95%", hoverinfo="skip"),
-                  line(x, piv["Monte Carlo p50"], "Monte Carlo median", SERIES_LIGHT[0], fmt)]
-        traces += [line(x, piv[n], n, c, fmt) for n, c in colors.items() if n in piv]
+                             fillcolor=LIGHT["band"], name="Middle 90% of simulations", hoverinfo="skip"),
+                  line(x, piv["Monte Carlo p50"], "Typical simulation", SERIES_LIGHT[0], fmt)]
+        shown = {"GFC replay (2008-2010)": "Replay of 2008-2010", "Severely adverse": "Severe recession",
+                 "Adverse": "Mild recession"}
+        traces += [line(x, piv[n], shown.get(n, n), c, fmt) for n, c in colors.items() if n in piv]
         lay = base_layout(height=340, hovermode="x unified",
                           yaxis=dict(ticksuffix="%" if measure == "unemployment_rate" else "",
                                      tickformat=".0%" if measure == "hpi_relative" else ".1f"))
-        p.chart(_fig_json(traces, lay)[0], lay, title, "Named scenarios against the simulated 5th-95th percentile band",
+        p.chart(_fig_json(traces, lay)[0], lay, title, "Named scenarios compared with the range of simulated economies",
                 explain=("The shaded band holds 90% of the simulated futures. The coloured lines are the named "
                          "scenarios regulators ask for, from a baseline to a severe recession, plus a replay of "
                          "what actually happened in 2008-2010." if measure == "unemployment_rate" else
@@ -531,8 +546,8 @@ def _stress(con, s: dict) -> tuple[Page, dict]:
                 '<button class="linkbtn" id="sx-reset">Reset</button></div>'
                 '<p class="readout" id="sx-read" aria-live="polite"></p>')
     lay = base_layout(height=380, showlegend=True, hovermode="closest", hoverdistance=12,
-                      xaxis=dict(title="Rise in national unemployment (pts)", showgrid=True, gridcolor=LIGHT["grid"]),
-                      yaxis=dict(title="Credit loss", tickformat=".2%"))
+                      xaxis=dict(title="Rise in national unemployment (percentage points)", showgrid=True, gridcolor=LIGHT["grid"]),
+                      yaxis=dict(title="Loss (% of balance)", tickformat=".2%"))
     top = mc.sort_values("loss_rate", ascending=False).head(25)[["scenario_id", "peak_unemployment", "hpi_trough_change", "loss_rate"]]
     p.chart([], lay, "Explore the scenarios",
             "Every dot is a simulated economy; drag the sliders to keep only the harsher ones",
@@ -547,11 +562,11 @@ def _stress(con, s: dict) -> tuple[Page, dict]:
     bt["month"] = pd.to_datetime(bt["month"])
     lay = base_layout(height=360, hovermode="x unified", yaxis=dict(title="Defaults per month", rangemode="tozero"))
     p.chart(_fig_json([line(bt["month"], bt["defaults"], "Actual", LIGHT["ink"], ",.0f"),
-                       line(bt["month"], bt["projected_defaults_in_sample"], "Model, all history", SERIES_LIGHT[0], ",.0f"),
-                       line(bt["month"], bt["projected_defaults"], "Model, crisis excluded", SERIES_LIGHT[1], ",.0f"),
-                       line(bt["month"], bt["naive_defaults"], "Naive through-the-cycle", LIGHT["muted"], ",.0f", width=1.5)],
-                      lay)[0], lay, "Backtest: 2008-2010",
-            "The December 2007 book projected through the realised economy, against what happened",
+                       line(bt["month"], bt["projected_defaults_in_sample"], "Model trained on all history", SERIES_LIGHT[0], ",.0f"),
+                       line(bt["month"], bt["projected_defaults"], "Model that never saw the crisis", SERIES_LIGHT[1], ",.0f"),
+                       line(bt["month"], bt["naive_defaults"], "Simple long-run average", LIGHT["muted"], ",.0f", width=1.5)],
+                      lay)[0], lay, "Did the model get 2008-2010 right?",
+            "Loans held in December 2007, run through the real economy that followed, against what actually happened",
             explain=_backtest_explain(bt),
             table=table_html(bt[["month", "defaults", "projected_defaults_in_sample", "projected_defaults", "naive_defaults"]].iloc[::3],
                        {"month": lambda v: v.strftime("%Y-%m")} | {c: (lambda v: f"{v:,.0f}") for c in
@@ -567,13 +582,13 @@ def _backtest_explain(bt: pd.DataFrame) -> str:
     word = lambda e: f"{'over' if e > 0 else 'under'}-predicts by {abs(e):.0%}"  # noqa: E731
     return ("The honest test of a stress model: take the loans that were being repaid in December 2007, feed the model "
             "the economy that actually followed, and compare with the defaults that really happened. "
-            f"Fitted on all history (blue) the model {word(fit)}. With the crisis hidden from it (orange) it {word(oos)}, "
+            f"Trained on all history (blue) the model {word(fit)}. With the crisis hidden from it (orange) it {word(oos)}, "
             "because it had never seen an economy that bad. A naive long-run average (grey) "
             f"{word(naive)}: without a model of the economy, a crisis is invisible.")
 
 
 def _quality(con) -> Page:
-    p = Page("quality", "Data quality")
+    p = Page("quality", "Data checks")
     p.intro("Can we trust the data?",
             "Every file is checked automatically before it is loaded: missing IDs, impossible values (a credit score of "
             "900), duplicates, and payment records for loans that do not exist. A file that fails is rejected whole, "
@@ -587,9 +602,9 @@ def _quality(con) -> Page:
     loaded = ing[ing["status"] == "loaded"]
     total_checks, passed = int(dq["checks"].sum()), int(dq["passed"].sum())
     p.tiles([
-        {"label": "Validation checks run", "value": f"{total_checks:,}", "delta": f"{int(dq['batches'].sum()):,} batches", "delta_good": None},
-        {"label": "Check pass rate", "value": pct(passed / max(total_checks, 1), 2), "delta_good": None},
-        {"label": "Source loads", "value": f"{int(loaded['n'].sum()) if len(loaded) else 0:,}",
+        {"label": "Automatic checks run", "value": f"{total_checks:,}", "delta": f"on {int(dq['batches'].sum()):,} batches of data", "delta_good": None},
+        {"label": "Checks passed", "value": pct(passed / max(total_checks, 1), 2), "delta_good": None},
+        {"label": "Files loaded", "value": f"{int(loaded['n'].sum()) if len(loaded) else 0:,}",
          "delta": f"{int(ing.loc[ing['status'] == 'failed', 'n'].sum()) if 'failed' in set(ing['status']) else 0} failed", "delta_good": None},
         {"label": "Monthly records loaded", "value": compact(float(loaded["records"].sum()) if len(loaded) else 0)},
     ])
@@ -600,7 +615,7 @@ def _quality(con) -> Page:
                  hovertemplate="<b>%{x:.2%}</b> of checks passed<br>%{y}<extra></extra>")
     lay = base_layout(height=260, showlegend=False, xaxis=dict(tickformat=".0%", range=[0, 1.12], showgrid=True, gridcolor=LIGHT["grid"]),
                       yaxis=dict(showgrid=False), margin=dict(l=160, r=30, t=16, b=40))
-    p.chart(_fig_json([bar], lay)[0], lay, "Great Expectations pass rate by suite", "Every batch is validated before it is loaded",
+    p.chart(_fig_json([bar], lay)[0], lay, "Checks passed, by type of file", "Every batch is checked (with Great Expectations) before it is loaded",
             table=table_html(dq, {"checks": lambda v: f"{int(v):,}", "passed": lambda v: f"{int(v):,}",
                                   "unexpected_values": lambda v: f"{int(v):,}", "batches": lambda v: f"{int(v):,}",
                                   "pass_rate": pct}),
@@ -610,7 +625,7 @@ def _quality(con) -> Page:
     hist = con.execute("""select source_period, status, orig_rows, perf_rows, finished_at, message
                           from meta.ingest_log order by finished_at desc limit 15""").df()
     p.html_block('<figure class="card wide"><figcaption><div><h3>Latest loads</h3>'
-                 '<p class="sub">Incremental: unchanged files are skipped, restated files replace their period</p></div></figcaption>'
+                 '<p class="sub">Unchanged files are skipped; corrected files replace their period</p></div></figcaption>'
                  f'<div class="table-static">{table_html(hist, {"orig_rows": lambda v: "–" if pd.isna(v) else f"{int(v):,}", "perf_rows": lambda v: "–" if pd.isna(v) else f"{int(v):,}", "finished_at": lambda v: str(v)[:19]})}</div></figure>')
     return p
 
@@ -641,8 +656,8 @@ def _start(con, s: dict, cut: dict | None, pdm: dict | None) -> Page:
     if cut:
         t = cut["test"]
         cards.append(("policy", "4", "Which new loans should we approve?", pct(cut["cutoff_pd"], 1),
-                      f"predicted default risk is the line. Declining above it approves {pct(t['approval_rate'], 1)} of "
-                      f"applicants and adds {t['profit_uplift'] * 100:.2f}% to profit"))
+                      f"is the cut-off: decline applicants with a higher predicted default risk. That still approves "
+                      f"{pct(t['approval_rate'], 1)} of them and adds {t['profit_uplift'] * 100:.2f}% to profit"))
     p.html_block('<div class="qgrid">' + "".join(
         f'<button class="qcard" data-go="{k}"><span class="qn">{n}</span><span class="qt">{html.escape(q)}</span>'
         f'<span class="qv">{html.escape(v)}</span><span class="qs">{html.escape(sub)}</span>'
@@ -658,7 +673,7 @@ def _start(con, s: dict, cut: dict | None, pdm: dict | None) -> Page:
     p.html_block(
         '<div class="card"><h3>How to use this dashboard</h3><ul class="tips">'
         '<li><b>Hover</b> any chart to read exact values.</li>'
-        '<li><b>Open "What this shows and why it matters"</b> under a chart title for a plain-English explanation.</li>'
+        '<li><b>"How to read this"</b> under every chart title explains it in plain English.</li>'
         '<li><b>Table view</b> shows the numbers behind every chart.</li>'
         '<li><b>Time range</b> buttons zoom the history charts; drag on a chart to zoom, double-click to reset.</li>'
         '<li><b>Try it:</b> pick vintages to compare, filter the stress scenarios, and move the approval slider.</li>'
@@ -670,7 +685,7 @@ def _start(con, s: dict, cut: dict | None, pdm: dict | None) -> Page:
              ("PD", "Probability of default: the model's estimate that a loan defaults within 24 months."),
              ("LGD", "Loss given default: the share of the balance lost when a loan defaults, after the home is sold."),
              ("Expected loss", "PD x LGD x balance: what a loan is expected to cost on average."),
-             ("CPR / CDR", "The share of the book paid off early / defaulting each year."),
+             ("CPR / CDR", "The share of the balance paid off early / defaulting each year."),
              ("Stress test", "Projecting losses through simulated bad economies."),
              ("99th percentile loss", "The loss exceeded in only 1 of 100 simulated economies."),
              ("AUC", f"How well the model ranks risk: 0.5 is a coin flip, 1.0 is perfect. Here: {auc}.")]
@@ -685,16 +700,19 @@ def _policy(cut: dict, curve: pd.DataFrame, pdm: dict | None) -> tuple[Page, dic
     Profit is recomputed in the browser as margin x horizon x performing balance - severity x
     default losses, from the realised outcomes of the test vintages (see decision/cutoff.py).
     """
-    p = Page("policy", "Approval policy")
+    p = Page("policy", "Who to approve")
     t, a = cut["test"], cut["assumptions"]
     curve = curve.sort_values("cutoff_pd").reset_index(drop=True)
     rec = int((curve["cutoff_pd"] - cut["cutoff_pd"]).abs().idxmin())
     lift = pdm["test"]["xgboost"]["recall_top10"] if pdm else None
+    gain = t["realised_profit"] - t["realised_profit_approve_all"]
     p.intro("Which new loans should we approve?",
-            "The model gives every application a predicted chance of default. A loan that is repaid earns the lender a "
-            "small margin each year; one that defaults loses part of its balance. Move the slider to choose where to draw "
-            f"the line, and see what that policy would have done on <b>{t['loans']:,}</b> real loans made in "
-            f"{a['evaluated_on'].split('[')[-1].rstrip(']').replace(', ', '-')}."
+            f"Almost all of them. Decline only applicants whose predicted chance of default is above "
+            f"<b>{pct(cut['cutoff_pd'], 1)}</b>, about 1 in {1 / (1 - t['approval_rate']):,.0f}. Tested on "
+            f"<b>{t['loans']:,}</b> real loans made in {a['evaluated_on'].split('[')[-1].rstrip(']').replace(', ', '-')}, "
+            f"that avoids <b>{pct(t['defaults_avoided_share'], 1)}</b> of defaults and adds <b>{compact(gain, True)}</b> "
+            "of profit. Declining many more would lose money, because good borrowers get turned away with the bad. "
+            "Move the slider to try other cut-offs."
             + (f" The model ranks risk well: the riskiest 10% of applicants account for <b>{pct(lift, 0)}</b> of defaults." if lift else ""))
     margins = sorted({0.0025, round(a["net_margin_annual"] * 2 / 3, 4), a["net_margin_annual"],
                       round(a["net_margin_annual"] * 4 / 3, 4), 0.01})
@@ -744,35 +762,37 @@ def _policy(cut: dict, curve: pd.DataFrame, pdm: dict | None) -> tuple[Page, dic
 # ---- assembly ------------------------------------------------------------------------------
 
 CSS = """
-.viz-root{color-scheme:light;--surface:#fcfcfb;--page:#f9f9f7;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
- --grid:#e1e0d9;--axis:#c3c2b7;--border:rgba(11,11,11,.10);--accent:#2a78d6;--deemph:#c9c8c1;
- --good:#006300;--bad:#d03b3b}
-:root[data-theme="dark"] .viz-root{color-scheme:dark;--surface:#1a1a19;--page:#0d0d0d;--ink:#ffffff;--ink2:#c3c2b7;
- --muted:#898781;--grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,.10);--accent:#3987e5;--deemph:#4a4a46;
- --good:#0ca30c;--bad:#e66767}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+.viz-root{color-scheme:light;--surface:#ffffff;--page:#f6f7f9;--ink:#16202c;--ink2:#4a5563;--muted:#8a929c;
+ --grid:#e9ebee;--axis:#d2d6dc;--border:#e4e7eb;--accent:#1f4e79;--accent-soft:#e8eef5;--deemph:#cfd3d8;
+ --good:#2f7d4f;--bad:#b83c3c}
+:root[data-theme="dark"] .viz-root{color-scheme:dark;--surface:#17191c;--page:#0f1113;--ink:#f2f4f7;--ink2:#b7bec8;
+ --muted:#8a929c;--grid:#262a2f;--axis:#343a41;--border:#262a2f;--accent:#7fa7d6;--accent-soft:#1c2733;--deemph:#3d434a;
+ --good:#4fae74;--bad:#e06a66}
 *{box-sizing:border-box}
-body{margin:0;background:var(--page);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+body{margin:0;background:var(--page);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
 .viz-root{background:var(--page);color:var(--ink);min-height:100vh}
-html{background:#f9f9f7} :root[data-theme="dark"]{background:#0d0d0d}
-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;padding:20px 28px 8px}
-header h1{margin:0;font-size:22px;font-weight:600}
-header p{margin:4px 0 0;color:var(--ink2);font-size:13px}
+html{background:#f6f7f9} :root[data-theme="dark"]{background:#0f1113}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;padding:26px 28px 10px;max-width:1360px;margin:0 auto}
+header .kicker{color:var(--accent);text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:600}
+header h1{margin:4px 0 0;font-size:24px;font-weight:650;letter-spacing:-.01em}
+header p{margin:6px 0 0;color:var(--ink2);font-size:13px}
 .note{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--ink2)}
-nav{display:flex;gap:4px;padding:8px 28px 0;border-bottom:1px solid var(--grid);overflow-x:auto}
-nav button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 12px;font:inherit;font-size:14px;color:var(--ink2);cursor:pointer}
+nav{display:flex;gap:4px;padding:8px max(28px,calc((100% - 1360px)/2 + 28px)) 0;border-bottom:1px solid var(--grid);overflow-x:auto}
+nav button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 12px;font:inherit;font-size:14px;color:var(--ink2);cursor:pointer;white-space:nowrap}
 nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
 .filters[hidden]{display:none}
-.filters{display:flex;gap:8px;align-items:center;padding:14px 28px 0;font-size:13px;color:var(--ink2)}
+.filters{display:flex;gap:8px;align-items:center;padding:14px 28px 0;font-size:13px;color:var(--ink2);max-width:1360px;margin:0 auto}
 .tv{white-space:nowrap;flex:none}
 .filters button,.theme,.tv{font:inherit;font-size:12px;border:1px solid var(--border);background:var(--surface);color:var(--ink);
  border-radius:6px;padding:5px 10px;cursor:pointer}
 .filters button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}
-main{padding:16px 28px 40px}
+main{padding:18px 28px 40px;max-width:1360px;margin:0 auto}
 section{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 section[hidden]{display:none}
 .tiles{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
-.tile{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
-.tile-label{font-size:12px;color:var(--ink2)}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.tile-label{font-size:12.5px;color:var(--ink2)}
 .tile-value{font-size:26px;font-weight:600;margin-top:4px}
 .tile.hero .tile-value{font-size:48px;line-height:1.05}
 .delta{font-size:12px;color:var(--ink2);margin-top:4px}
@@ -780,7 +800,7 @@ section[hidden]{display:none}
 .spark{width:100%;height:24px;margin-top:6px;display:block}
 .spark-line{fill:none;stroke:var(--deemph);stroke-width:1.5;vector-effect:non-scaling-stroke}
 .spark-dot{fill:var(--accent)}
-.card{margin:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px 8px;min-width:0}
+.card{margin:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px 10px;min-width:0}
 .card.wide{grid-column:1/-1}
 figcaption{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 figcaption h3{margin:0;font-size:15px;font-weight:600}
@@ -790,17 +810,18 @@ table{border-collapse:collapse;font-size:12px;width:100%;font-variant-numeric:ta
 th,td{padding:5px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
 th{color:var(--ink2);font-weight:600;position:sticky;top:0;background:var(--surface)}
-footer{padding:0 28px 28px;color:var(--muted);font-size:12px}
-.intro{grid-column:1/-1;padding:4px 2px 2px}
-.intro .q{margin:0;font-size:20px;font-weight:600}
-.intro .a{margin:6px 0 0;font-size:14px;line-height:1.55;color:var(--ink2);max-width:980px}
+footer{padding:0 28px 28px;color:var(--muted);font-size:12px;max-width:1360px;margin:0 auto}
+.intro{grid-column:1/-1;display:grid;grid-template-columns:1fr 1.4fr;background:var(--surface);border:1px solid var(--border);
+ border-radius:12px;overflow:hidden}
+.intro>div{padding:14px 18px}
+.intro>div+div{border-left:1px solid var(--border)}
+.intro .lab{color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;font-weight:600}
+.intro .q{margin:4px 0 0;font-size:18px;font-weight:600;line-height:1.35}
+.intro .a{margin:4px 0 0;font-size:14px;line-height:1.55;color:var(--ink2)}
+@media (max-width:900px){.intro{grid-template-columns:1fr}.intro>div+div{border-left:0;border-top:1px solid var(--border)}}
 .intro b,.lead b{color:var(--ink)}
-.why{margin:8px 0 2px;font-size:13px}
-.why summary{cursor:pointer;color:var(--accent);font-size:12px;list-style:none;display:inline-flex;gap:6px;align-items:center}
-.why summary::before{content:"i";display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;
- border:1px solid var(--accent);font-size:10px;font-weight:700;font-style:italic}
-.why summary::-webkit-details-marker{display:none}
-.why p{margin:6px 0 4px;line-height:1.55;color:var(--ink2);max-width:900px}
+.why{margin:8px 0 4px;font-size:13px;line-height:1.55;color:var(--ink2);max-width:980px}
+.why>b:first-child{color:var(--ink);font-weight:600}
 .controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;margin:10px 0 4px;font-size:13px;color:var(--ink2)}
 .controls label{display:flex;flex-direction:column;gap:6px;min-width:200px}
 .controls label>span:first-child{white-space:nowrap}
@@ -824,7 +845,7 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
  border-radius:999px;padding:4px 10px 4px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
 .chip .sw{width:10px;height:10px;border-radius:50%;background:var(--deemph)}
 .chip[aria-pressed="true"]{color:var(--ink);font-weight:600;border-color:var(--ink2)}
-.lead h2{margin:0 0 8px;font-size:22px}
+.lead h2{margin:0 0 8px;font-size:20px;font-weight:650}
 .lead p{margin:6px 0;font-size:15px;line-height:1.6;color:var(--ink2);max-width:1000px}
 .qgrid{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
 .qcard{text-align:left;font:inherit;background:var(--surface);color:var(--ink);border:1px solid var(--border);
@@ -848,7 +869,7 @@ code{font-size:12px}
 """
 
 JS = """
-const LIGHT = %(light)s, DARK = {surface:'#1a1a19', ink:'#ffffff', ink2:'#c3c2b7', muted:'#898781', grid:'#2c2c2a', axis:'#383835', deemph:'#4a4a46'};
+const LIGHT = %(light)s, DARK = {surface:'#17191c', ink:'#f2f4f7', ink2:'#b7bec8', muted:'#8a929c', grid:'#262a2f', axis:'#343a41', deemph:'#3d434a'};
 const SL = %(sl)s, SD = %(sd)s;
 const FIGS = %(figs)s;
 const rendered = new Set();
@@ -1040,7 +1061,7 @@ def build_dashboard(settings: Settings) -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>LoanLens - portfolio risk dashboard</title>
 <style>{CSS}</style><script>{get_plotlyjs()}</script></head>
 <body><div class="viz-root">
-<header><div><h1>LoanLens · mortgage portfolio risk</h1><p>{html.escape(profile_note)} · performance through {str(end)[:7]} · FRED macro data</p></div>
+<header><div><span class="kicker">LoanLens · mortgage risk</span><h1>Which home loans will go bad, and what should a lender do about it?</h1><p>{html.escape(profile_note)} · followed month by month through {str(end)[:7]} · economic data from FRED</p></div>
 <div style="display:flex;gap:8px;align-items:center"><span class="note">Also available as a Power BI kit</span>
 <button class="theme" id="theme">Dark theme</button></div></header>
 <nav role="tablist">{nav}</nav>
@@ -1048,7 +1069,7 @@ def build_dashboard(settings: Settings) -> str:
 <button data-years="0" aria-pressed="true">All history</button><button data-years="10" aria-pressed="false">Last 10 years</button>
 <button data-years="5" aria-pressed="false">Last 5 years</button><button data-years="2" aria-pressed="false">Last 24 months</button></div>
 <main>{sections}</main>
-<footer>Generated by <code>loanlens report</code>. Shaded bands: NBER recessions. Every chart has a table view.</footer>
+<footer>Generated by <code>loanlens report</code>. Grey bands on history charts are US recessions (NBER). Every chart has a table view.</footer>
 </div><script>{js}</script>
 <script>const EXTRA = {json.dumps(extra)};</script><script>{JS_INTERACTIVE}</script></body></html>"""
     path = settings.reports_dir / "dashboard.html"
